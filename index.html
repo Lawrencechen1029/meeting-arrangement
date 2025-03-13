@@ -1,0 +1,281 @@
+import React, { useState, useEffect } from 'react';
+import './App.css';
+
+const App = () => {
+  const [meetings, setMeetings] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [name, setName] = useState('');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('09:30');
+  const [room, setRoom] = useState('1401');
+
+  useEffect(() => {
+    const storedMeetings = JSON.parse(localStorage.getItem('meetings')) || [];
+    setMeetings(storedMeetings);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('meetings', JSON.stringify(meetings));
+  }, [meetings]);
+
+  const handleBookMeeting = () => {
+    if (!name || !startTime || !endTime || !room) return;
+
+    const newMeeting = {
+      name,
+      date: selectedDate.toISOString().split('T')[0],
+      startTime,
+      endTime,
+      room,
+    };
+
+    setMeetings([...meetings, newMeeting]);
+    setName('');
+    setStartTime('09:00');
+    setEndTime('09:30');
+    setRoom('1401');
+  };
+
+  const handleDeleteMeeting = (meetingToDelete) => {
+    setMeetings(meetings.filter((meeting) => meeting !== meetingToDelete));
+  };
+
+  const isTimeSlotAvailable = (date, time, room) => {
+    return meetings.every(
+      (meeting) =>
+        !(meeting.date === date && meeting.room === room) ||
+        meeting.endTime <= time ||
+        meeting.startTime >= time
+    );
+  };
+
+  const getWeekDates = (date) => {
+    const weekStart = new Date(date);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + i);
+      dates.push(day);
+    }
+    return dates;
+  };
+
+  const generateTimeslots = () => {
+    const timeslots = [];
+    let currentTime = '09:00';
+    while (currentTime < '21:00') {
+      timeslots.push(currentTime);
+      const [hours, minutes] = currentTime.split(':').map(Number);
+      const nextMinutes = minutes + 30;
+      currentTime =
+        `${hours}${nextMinutes === 60 ? hours + 1 : hours}:${String(nextMinutes % 60).padStart(2, '0')}`;
+    }
+    return timeslots;
+  };
+
+  const weekDates = getWeekDates(selectedDate);
+  const timeslots = generateTimeslots();
+
+  return (
+    <div className="app">
+      <h1>会议室预订系统</h1>
+      <div className="booking-form">
+        <label>
+          预订人姓名:
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          日期:
+          <input
+            type="date"
+            value={selectedDate.toISOString().split('T')[0]}
+            onChange={(e) => setSelectedDate(new Date(e.target.value))}
+          />
+        </label>
+        <label>
+          起始时间:
+          <select
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+          >
+            {timeslots.map((time) => (
+              <option key={time} value={time}>
+                {time}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          结束时间:
+          <select
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+          >
+            {timeslots.slice(timeslots.indexOf(startTime) + 1).map((time) => (
+              <option key={time} value={time}>
+                {time}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          会议室:
+          <select value={room} onChange={(e) => setRoom(e.target.value)}>
+            <option value="1401">1401</option>
+            <option value="1402">1402</option>
+          </select>
+        </label>
+        <button onClick={handleBookMeeting}>预订会议室</button>
+      </div>
+      <div className="calendar">
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              {weekDates.map((date) => (
+                <th key={date.toISOString()}>
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })} {date.getDate()}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {timeslots.map((time) => (
+              <tr key={time}>
+                <td>{time}</td>
+                {weekDates.map((date) => (
+                  <td
+                    key={`${date.toISOString()}${time}`}
+                    style={{
+                      backgroundColor: isTimeSlotAvailable(
+                        date.toISOString().split('T')[0],
+                        time,
+                        room
+                      )
+                        ? 'white'
+                        : 'gray',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={() => {
+                      const bookedMeeting = meetings.find(
+                        (meeting) =>
+                          meeting.date === date.toISOString().split('T')[0] &&
+                          meeting.startTime <= time &&
+                          meeting.endTime > time &&
+                          meeting.room === room
+                      );
+                      if (bookedMeeting) {
+                        alert(
+                          `预订人: ${bookedMeeting.name}\n开始时间: ${bookedMeeting.startTime}\n结束时间: ${bookedMeeting.endTime}`
+                        );
+                      }
+                    }}
+                  ></td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="reservations-table">
+        <h2>所有预订信息</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>起始时间</th>
+              <th>结束时间</th>
+              <th>会议室</th>
+              <th>预订人</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {meetings.map((meeting, index) => (
+              <tr key={index}>
+                <td>{new Date(meeting.date).toLocaleDateString()}</td>
+                <td>{meeting.startTime}</td>
+                <td>{meeting.endTime}</td>
+                <td>{meeting.room}</td>
+                <td>{meeting.name}</td>
+                <td>
+                  <button onClick={() => handleDeleteMeeting(meeting)}>取消预订</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="usage-chart">
+        <h2>会议室每周使用情况</h2>
+        <div className="chart">
+          <div className="room">
+            <h3>会议室 1401</h3>
+            <ul>
+              {weekDates.map((date) => (
+                <li key={date.toISOString()}>
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })} {date.getDate()}
+                  <ul>
+                    {timeslots.map((time) => {
+                      const isBooked = meetings.some(
+                        (meeting) =>
+                          meeting.date === date.toISOString().split('T')[0] &&
+                          meeting.startTime <= time &&
+                          meeting.endTime > time &&
+                          meeting.room === '1401'
+                      );
+                      return (
+                        <li
+                          key={time}
+                          style={{ backgroundColor: isBooked ? 'gray' : 'white' }}
+                        >
+                          {time}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="room">
+            <h3>会议室 1402</h3>
+            <ul>
+              {weekDates.map((date) => (
+                <li key={date.toISOString()}>
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })} {date.getDate()}
+                  <ul>
+                    {timeslots.map((time) => {
+                      const isBooked = meetings.some(
+                        (meeting) =>
+                          meeting.date === date.toISOString().split('T')[0] &&
+                          meeting.startTime <= time &&
+                          meeting.endTime > time &&
+                          meeting.room === '1402'
+                      );
+                      return (
+                        <li
+                          key={time}
+                          style={{ backgroundColor: isBooked ? 'gray' : 'white' }}
+                        >
+                          {time}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
+
+
+
