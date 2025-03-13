@@ -1,0 +1,39 @@
+.app {
+  font-family: Arial, sans-serif;
+}
+
+.booking-form, .reservations-table, .usage-chart {
+  margin-bottom: 20px;
+}
+
+.calendar table, .reservations-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.calendar th, .reservations-table th, .calendar td, .reservations-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.calendar th {
+  background-color: #f2f2f2;
+}
+
+.chart {
+  display: flex;
+  justify-content: space-between;
+}
+
+.room ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.room li {
+  list-style-type: none;
+  padding: 5px;
+  border: 1px solid #ddd;
+  margin-bottom: 2px;
+}
